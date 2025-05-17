@@ -17,6 +17,8 @@ return new class extends Migration
             $table->unsignedBigInteger('receiver_id');
             $table->text('message');
             $table->enum('type', ['text', 'photo', 'video'])->default('text');
+            $table->unsignedBigInteger('chat_id');
+            $table->foreign('chat_id')->references('id')->on('chats')->onDelete('cascade');
             $table->timestamps();
         });
     }
