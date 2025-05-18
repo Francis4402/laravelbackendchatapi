@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Message;
+use App\Events\MessageSentEvent;
+use App\Models\Chat;
+
 
 class MessageController extends Controller
 {
@@ -24,12 +27,30 @@ class MessageController extends Controller
             'type' => 'required|in:text,video,photo',
         ]);
 
-        Message::create([
+        $chat = Chat::where(function ($query) use ($request) {
+            $query->where('sender_id', auth()->id())
+                ->where('receiver_id', $request->receiver_id);
+        })->orWhere(function ($query) use ($request) {
+            $query->where('sender_id', $request->receiver_id)
+                ->where('receiver_id', auth()->id());
+        })->first();
+
+        if (empty($chat)) {
+            $chat = Chat::create([
+                'sender_id' => auth()->id(),
+                'receiver_id' => $request->receiver_id,
+            ]);
+        }
+
+        $message = Message::create([
+            'chat_id' => $chat->id,
             'receiver_id' => $request->receiver_id,
             'message' => $request->message,
             'type' => $request->type,
             'sender_id' => auth()->user()->id,
         ]);
+
+        broadcast(new MessageSentEvent($message))->toOthers();
 
         return response()->json([
             'message' => 'Message sent!',
